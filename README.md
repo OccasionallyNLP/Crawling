@@ -4,6 +4,7 @@ crawling - 맛집
 ## 일정
 22.11.5 ~ 부터 진행 중  
 22.11.27 : 리뷰 데이터도 긁어오도록.
+22.12.01 : 카카오, 망고플레이트 리뷰 데이터 크롤링 완료.
 
 ## 크롤링 할 대상
 1. 네이버 : 개발 진행 
@@ -16,7 +17,7 @@ crawling - 맛집
 
 ## Data
 행안부에서 제공하는 음식점 데이터를 토대로, 네카망 데이터 수집 중.
-1. 네이버 
+1. 네이버 : 리뷰 긁어오는 것 막아둠
 2. 카카오
 3. 망고플레이트
 
@@ -32,4 +33,4 @@ https://somjang.tistory.com/entry/Ubuntu-Ubuntu-%EC%84%9C%EB%B2%84%EC%97%90-Sele
 https://mryeo.tistory.com/10  : chrome 삭제 후 재설치
 
 https://miiingo.tistory.com/349  : 구버전의 chrome 설치
-https://www.slimjet.com/chrome/google-chrome-old-version.php  
+https://www.slimjet.com/chrome/google-chrome-old-version.php 
