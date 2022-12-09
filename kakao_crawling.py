@@ -71,8 +71,8 @@ def get_data_from_page():
         
 # query generate
 def query_generation(query:str, location:Dict, city:str):
-    if i.split()[-1].endswith('점'):
-        query = ' '.join(query.split()[:-1])
+    #if i.split()[-1].endswith('점'):
+    #   query = ' '.join(query.split()[:-1])
     query = city + ' ' + location['자치구'][:-1] + ' ' + query
     return query
 
