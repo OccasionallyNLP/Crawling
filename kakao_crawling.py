@@ -14,6 +14,9 @@ from tqdm import tqdm
 from typing import Dict, List
 import re
 import copy
+MANGO_URL = 'https://www.mangoplate.com/'
+KAKAO_URL = 'https://map.kakao.com/'
+GOOGLE_URL = 'https://www.google.com/maps'
 
 def get_reviews(driver,action,c):
     # select review
@@ -53,14 +56,28 @@ def get_reviews(driver,action,c):
     driver.switch_to.window(window_name=first_tab)
     return reviews
 
-def get_data_from_page():
+def get_data_from_page(output, value:Dict):
     c = 1
     while True:
         try:
             name = driver.find_element(value="#info\.search\.place\.list > li:nth-child(%d) > div.head_item.clickArea > strong > a.link_name"%c,by='css selector').text
+            # 도로명 주소
             address = driver.find_element(value="#info\.search\.place\.list > li:nth-child(%d) > div.info_item > div.addr > p:nth-child(1)"%c,by='css selector').text
             score = driver.find_element(value="#info\.search\.place\.list > li:nth-child(%d) > div.rating.clickArea > span.score > em"%c,by='css selector').text
-            reviews=get_reviews(driver, action, c)
+            # output과 비교
+            if output.get(address):
+                c+=1
+                continue
+            # 원본의 address와 비교
+            org_addr = value['도로명전체주소'] if type(value['도로명전체주소'])!=float else ''
+            if org_addr:
+                org_addr = ' '.join(org_addr.split()[:3]).strip()
+                org_addr = re.sub('특별시','', org_addr)
+                addr = ' '.join(address.split()[:3]).strip()
+                if addr != org_addr:
+                    c+=1
+                    continue
+            reviews = get_reviews(driver, action, c)
             dic = dict(name=name, address = address, score = score, reviews = reviews)
             if dic in answer_list:
                 return True
@@ -70,24 +87,28 @@ def get_data_from_page():
             return False
         
 # query generate
-def query_generation(query:str, location:Dict, city:str):
-    #if i.split()[-1].endswith('점'):
-    #   query = ' '.join(query.split()[:-1])
-    query = city + ' ' + location['자치구'][:-1] + ' ' + query
-    return query
+def query_generation(query:str, address:str):
+    # nan
+    if type(address['소재지전체주소'])==float:
+        if type(address['도로명전체주소'])==float:
+            address = ''
+        else:
+            address = address['도로명전체주소']
+    else:
+        address = address['소재지전체주소']
+    if address: 
+        address = ' '.join(address.split()[:3]).strip()
+    query = address+' '+query
+    return query.strip()
 
-MANGO_URL = 'https://www.mangoplate.com/'
-KAKAO_URL = 'https://map.kakao.com/'
-GOOGLE_URL = 'https://www.google.com/maps'
 # OK - 기존과 바뀜 - 함수 통일화
 ALPHABET = list(string.ascii_uppercase)
 parser = argparse.ArgumentParser(description='parse')
 # argument는 원하는 만큼 추가한다.
 parser.add_argument('--output_dir', type=str, default = './output/seoul/kakao')
-parser.add_argument('--data_dir', type=str, default = './data/seoul/%s.json')
+parser.add_argument('--data_dir', type=str, default = './Seoul/%s.json')
 parser.add_argument('--where', type=str, choices=['mango','google','kakao'], default='kakao')
 parser.add_argument('--wait_second', type=int, default = 2)
-parser.add_argument('--city', type=str, default = '서울')
 
 if __name__ == '__main__':
     logger_1, logger_2 = get_logs()
@@ -102,7 +123,7 @@ if __name__ == '__main__':
     elif args.where == 'google':
         default_url = GOOGLE_URL
     options = webdriver.chrome.options.Options()
-    options.add_argument('headless') #headless모드 브라우저가 뜨지 않고 실행됩니다.
+    #options.add_argument('headless') #headless모드 브라우저가 뜨지 않고 실행됩니다.
     #options.add_argument('--window-size= x, y') #실행되는 브라우저 크기를 지정할 수 있습니다.
     options.add_argument('--start-maximized') #브라우저가 최대화된 상태로 실행됩니다.
     options.add_argument('--start-fullscreen') #브라우저가 풀스크린 모드(F11)로 실행됩니다.
@@ -112,26 +133,26 @@ if __name__ == '__main__':
     driver = webdriver.Chrome('../../Crawling/chromedriver', options=options)
     driver.get(default_url)
     action = ActionChains(driver)
-    gus = [i.strip() for i in open('./data/서울시_자치구.txt','r',encoding='utf-8').readlines()]
-    # data load
-    #gus = [i.strip() for i in open('./data/서울시_자치구.txt','r',encoding='utf-8').readlines()]
+    #gus = [i.strip() for i in open('./서울시_자치구.txt','r',encoding='utf-8').readlines()]
+    gus = ['강남구']
     for gu in gus:
         data = json.load(open(args.data_dir%gu))
-        unique_data = {}
+        output = {} # key - address, # item - name, 
+        # 최적화
+        # address에 있다면, 진행하지 않고
+        ## 있을 때, 원본 데이터와 시 구 동이 같아야만 진행. 아니면 진행 x
         for i,j in data.items():
-            j['name'] = i
-            query = query_generation(i, j, args.city)
-            unique_data[query]=j
+            query = query_generation(i, j)
+            j['query']=query
         print(gu)
         now = time.time()
         ####################################################################################
-        for _,(query, value) in enumerate(tqdm(unique_data.items())):
-            # if _ == 1:
-            #     break
+        for _,(name, value) in enumerate(tqdm(data.items())):
             driver.get(default_url)
             driver.implicitly_wait(args.wait_second)
             answer_list = []
             value['%s_score'%args.where]=[]
+            query = value['query']
             driver.find_element(value="#search\.keyword\.query",  by = 'css selector').send_keys(query)
             driver.find_element(value="#search\.keyword\.query",  by = 'css selector').send_keys(Keys.RETURN)
             check = False
@@ -147,7 +168,7 @@ if __name__ == '__main__':
                             change_p = 5
                         driver.find_element(value="#info\.search\.page\.no%s"%change_p,by='css selector').click()
                         time.sleep(args.wait_second)
-                        check = get_data_from_page()
+                        check = get_data_from_page(output, value)
                         if check:
                             break
                     if check:
@@ -156,11 +177,15 @@ if __name__ == '__main__':
                     driver.implicitly_wait(args.wait_second)
 
             except:
-                get_data_from_page()
+                get_data_from_page(output, value)
+            # output에 추가-TODO
+            for a in answer_list:
+                output[a['address']]=a
             value['%s_score'%args.where]=copy.deepcopy(answer_list)
             logger_1.info(query)
             logger_1.info(value)
             continue
         ####################################################################################
         print(time.time()-now)
-        json.dump(unique_data,open(os.path.join(args.output_dir,'%s.json'%gu),'w'))
+        json.dump(data,open(os.path.join(args.output_dir,'%s.json'%gu),'w'))
+        json.dump(output,open(os.path.join(args.output_dir,'%s_output.json'%gu),'w'))
