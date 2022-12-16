@@ -24,19 +24,20 @@ logger_1, logger_2 = get_logs()
 parser = argparse.ArgumentParser(description='parse')
 # argument는 원하는 만큼 추가한다.
 parser.add_argument('--output_dir', type=str, default = './output/seoul/mango')
-parser.add_argument('--data_dir', type=str, default = './data/seoul/%s.json')
+parser.add_argument('--data_dir', type=str, default = './Seoul/%s.json')
 parser.add_argument('--where', type=str, choices=['mango','google','kakao'], default='mango')
 parser.add_argument('--city', type=str, default = '서울')
 parser.add_argument('--wait_second', type=int, default = 2)
 
-
-
 # query generate
-def query_generation(query:str, location:Dict, city:str):
+def query_generation(query:str, gu:str, city:str):
     if i.split()[-1].endswith('점'):
-        query = ' '.join(query.split()[:-1])
-    query = city + ' ' + location['자치구'][:-1] + ' ' + query
-    return query
+        if len(query.split())==1:
+            query = query
+        else:
+            query = ' '.join(query.split()[:-1])
+    query = city+' '+gu+' '+query
+    return query.strip()
 
 # review
 def parse_review_info(review_info):
@@ -146,30 +147,29 @@ if __name__=='__main__':
     elif args.where == 'google':
         default_url = GOOGLE_URL
     options = webdriver.chrome.options.Options()
-    options.add_argument('headless') #headless모드 브라우저가 뜨지 않고 실행됩니다.
+    #options.add_argument('headless') #headless모드 브라우저가 뜨지 않고 실행됩니다.
     #options.add_argument('--window-size= x, y') #실행되는 브라우저 크기를 지정할 수 있습니다.
     options.add_argument('--start-maximized') #브라우저가 최대화된 상태로 실행됩니다.
     options.add_argument('--start-fullscreen') #브라우저가 풀스크린 모드(F11)로 실행됩니다.
     options.add_argument('--blink-settings=imagesEnabled=false') #브라우저에서 이미지 로딩을 하지 않습니다.
     options.add_argument('--mute-audio') #브라우저에 음소거 옵션을 적용합니다.
     #options.add_argument('incognito') #시크릿 모드의 브라우저가 실행됩니다.
-    driver = webdriver.Chrome('../../Crawling/chromedriver', options=options)
+    driver = webdriver.Chrome('chromedriver', options=options)
     driver.get(default_url)
     action = ActionChains(driver)
-    gus = [i.strip() for i in open('./data/서울시_자치구.txt','r',encoding='utf-8').readlines()]
+    gus = [i.strip() for i in open('./서울시_자치구.txt','r',encoding='utf-8').readlines()]
     # data load
     for gu in gus:
         data = json.load(open(args.data_dir%gu))
-        unique_data = {}
         for i,j in data.items():
-            j['name'] = i
-            query = query_generation(i, j, args.city)
-            unique_data[query]=j
+            query = query_generation(i, gu, args.city)
+            j['query']=query
         print(gu)
         now = time.time()
-        for _,(query, value) in enumerate(tqdm(unique_data.items())):
+        for _,(name, value) in enumerate(tqdm(data.items())):
             page = 1
             current_page = -1
+            query = value['query']
             value['%s_score'%args.where]=[]
             # query 입력
             # 서울로 검색하기 위함임.
@@ -188,4 +188,4 @@ if __name__=='__main__':
             #logger_2.info(value)
             continue    
         print(time.time()-now)
-        json.dump(unique_data,open('./output/seoul/%s_mango_add.json'%gu,'w'))
+        json.dump(data,open('./output/seoul/%s_mango_add.json'%gu,'w'))
