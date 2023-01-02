@@ -105,7 +105,7 @@ ALPHABET = list(string.ascii_uppercase)
 parser = argparse.ArgumentParser(description='parse')
 # argument는 원하는 만큼 추가한다.
 parser.add_argument('--output_dir', type=str, default = './output/seoul/kakao')
-parser.add_argument('--data_dir', type=str, default = './Seoul/%s_kakao_further.csv')
+parser.add_argument('--data_dir', type=str, default = './Seoul/%s.csv')
 parser.add_argument('--web_driver', type=str, default='./chromedriver_win32/chromedriver')
 parser.add_argument('--wait_second', type=int, default = 2)
 
@@ -139,8 +139,6 @@ if __name__ == '__main__':
         now = time.time()
         ####################################################################################
         for idx in tqdm(data.index):
-            if idx==20:
-                break
             driver.get(default_url)
             driver.implicitly_wait(args.wait_second)
             answer_list = []
